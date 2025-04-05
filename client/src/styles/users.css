@@ -1,0 +1,33 @@
+/* UsersPage.css */
+.users-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.users-sidebar {
+  width: 250px;
+  min-height: 100vh;
+  background-color: #343a40;
+  position: fixed;
+  left: 0;
+  top: 0;
+  padding: 20px;
+  color: white;
+}
+
+.users-content {
+  flex: 1;
+  padding: 20px;
+  margin-left: 250px;
+}
+
+/* Make sure links are clickable even when active */
+.users-sidebar ul li.active a {
+  pointer-events: auto;
+}
+
+/* Remove any hover effects that might interfere */
+.users-sidebar ul li:hover a {
+  pointer-events: auto;
+}

@@ -1,0 +1,195 @@
+/* Sales Page Styling - Reusing Product styles with some additions */
+
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 250px;
+  background-color: #f8f9fa;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-header {
+  padding: 20px;
+  background-color: #fff;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.content-header h2 {
+  color: #343a40;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.content-body {
+  padding: 20px;
+  flex: 1;
+}
+
+/* Filter Card */
+.filter-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
+}
+
+.filter-card .card-body {
+  padding: 15px;
+}
+
+/* Table Styling */
+.sales-table {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.sales-table thead th {
+  background-color: #f8f9fa;
+  color: #495057;
+  font-weight: 600;
+  padding: 12px 15px;
+  border-bottom: 2px solid #dee2e6;
+  vertical-align: middle;
+}
+
+.sales-table tbody td {
+  padding: 12px 15px;
+  vertical-align: middle;
+  border-top: 1px solid #dee2e6;
+}
+
+.sales-table tbody tr:hover {
+  background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* Sale Items in Table */
+.sale-items-count {
+  cursor: pointer;
+  color: #0d6efd;
+  text-decoration: underline;
+}
+
+/* Buttons */
+.btn {
+  font-size: 14px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 13px;
+}
+
+/* Badge Styling */
+.badge {
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 4px;
+}
+
+.badge.bg-info {
+  background-color: #0dcaf0 !important;
+}
+
+/* Pagination */
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.pagination {
+  margin: 0;
+}
+
+/* Modal Styling */
+.modal-content {
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+/* Sale Items List in Modal */
+.sale-items-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Form Controls */
+.form-control,
+.form-select {
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 4px;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Date Picker */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+  .main-content {
+    margin-left: 0;
+  }
+
+  .filter-card .card-body > .row > [class^="col-"] {
+    margin-bottom: 10px;
+  }
+
+  .filter-card .text-end {
+    text-align: left !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .content-header,
+  .content-body {
+    padding: 15px;
+  }
+
+  .sales-table thead th,
+  .sales-table tbody td {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .btn {
+    padding: 5px 8px;
+    font-size: 13px;
+  }
+
+  /* Stack modals on small screens */
+  .modal-body .row > [class^="col-"] {
+    margin-bottom: 20px;
+  }
+}

@@ -1,0 +1,156 @@
+/* Base Layout */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
+
+.main-content {
+  flex: 1;
+  padding: 1.5rem;
+  margin-left: 250px;
+  transition: margin-left 0.3s ease;
+}
+
+.content-header {
+  margin-bottom: 1.5rem;
+}
+
+.content-header h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.content-body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Cards */
+.filter-card {
+  border-radius: 0.5rem;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.metric-card {
+  border-radius: 0.5rem;
+  transition: transform 0.2s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-3px);
+}
+
+.metric-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.metric-title {
+  font-size: 0.875rem;
+  color: #718096;
+}
+
+.metric-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+/* Table */
+.table-responsive {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.table th {
+  font-weight: 600;
+  background-color: #f7fafc;
+  white-space: nowrap;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+
+  .content-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .metric-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .metric-title {
+    font-size: 0.75rem;
+  }
+
+  .metric-value {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .content-header {
+    margin-bottom: 1rem;
+  }
+
+  .filter-card .col-md-4,
+  .filter-card .col-md-6 {
+    margin-bottom: 1rem;
+  }
+
+  .filter-card .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 576px) {
+  .main-content {
+    padding: 0.75rem;
+  }
+
+  .metric-card {
+    padding: 0.75rem;
+  }
+
+  .table th,
+  .table td {
+    padding: 0.5rem;
+  }
+}
+
+/* Color Utilities */
+.bg-primary-light {
+  background-color: rgba(66, 153, 225, 0.1);
+  color: #4299e1;
+}
+
+.bg-success-light {
+  background-color: rgba(72, 187, 120, 0.1);
+  color: #48bb78;
+}
+
+.bg-info-light {
+  background-color: rgba(90, 103, 216, 0.1);
+  color: #5a67d8;
+}
+
+.bg-warning-light {
+  background-color: rgba(237, 137, 54, 0.1);
+  color: #ed8936;
+}

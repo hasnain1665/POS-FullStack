@@ -1,0 +1,20 @@
+# .gitignore (root level)
+
+# Frontend (React)
+client/node_modules/
+client/.env
+client/dist/
+client/.DS_Store
+
+# Backend (Node.js)
+server/node_modules/
+server/.env
+server/.env.*
+server/logs/
+server/*.log
+
+# General
+.DS_Store
+.idea/
+.vscode/
+*.tmp

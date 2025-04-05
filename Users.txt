@@ -1,0 +1,12 @@
+{
+      "name": "John Smith",
+      "email": "john.smith@example.com",
+      "password": "P@ssw0rd123",
+      "role": "Admin"
+    },
+    {
+      "name": "Alice Johnson",
+      "email": "alice.johnson@example.com",
+      "password": "Alice@789",
+      "role": "Cashier"
+    }
