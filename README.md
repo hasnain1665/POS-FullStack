@@ -42,25 +42,80 @@ A full-stack Point of Sale (POS) system designed to manage products, sales, and 
 pos-app/
 ├── client/                  # React frontend
 │   ├── public/
-│   └── src/
-|       └── components/
-|       └── pages/
-|       └── redux/
-|       └── services/
-|       └── styles/
-|       └── utils/
-│   └── ...
+│   ├── src/
+|   |   ├── components/
+|   |   |   └── ProtectedRoute.jsx
+|   |   |   └── Sidebar.jsx
+|   |   ├── pages/
+|   |   |   └── Dashboard.jsx
+|   |   |   └── ForgotPassword.jsx
+|   |   |   └── Login.jsx
+|   |   |   └── ProductsPage.jsx
+|   |   |   └── ResetPassword.jsx
+|   |   |   └── SalesPage.jsx
+|   |   |   └── Signup.jsx
+|   |   |   └── UsersPage.js
+|   |   ├── redux/
+|   |   |   └── authSlice.jsx
+|   |   |   └── store.jsx
+|   |   ├── services/
+|   |   |   └── dashBoardservice.js
+|   |   |   └── productService.js
+|   |   |   └── salesService.js
+|   |   |   └── userService.js
+|   |   ├── styles/
+|   |   |   └── Dashboard.css
+|   |   |   └── ForgotPassword.css
+|   |   |   └── Login.css
+|   |   |   └── Product.css
+|   |   |   └── Sales.css
+|   |   |   └── Sidebar.css
+|   |   |   └── users.css
+|   |   ├── utils/
+|   |   |   └── auth.js
+|   |   └── App.js
+|   |   └── index.js
 ├── server/                  # Express backend
-│   ├── config/
-│   ├── controllers/
-│   ├── DB/
-│   ├── middleware/
-│   ├── migrations/
-│   ├── models/
-│   ├── routes/
-│   ├── utils/
-│   └── ...
+|   ├── config/
+|   |   └── config.js
+|   |   └── database.js
+|   ├── constrollers/
+|   |   └── authController.js
+|   |   └── productController.js
+|   |   └── saleController.js
+|   |   └── saleItemController.js
+|   |   └── userController.js
+|   ├── DB/
+|   |   └── sql.js
+|   ├── middleware/
+|   |   └── authMiddleware.js
+|   ├── migrations/
+|   |   └── 20250318000111-create-user.js
+|   |   └── 20250318000122-create-product.js
+|   |   └── 20250318000132-create-sale.js
+|   |   └── 20250318000139-create-sale-item.js
+|   |   └── 20250319010425-add-cashier-id-to-sales.js
+|   |   └── 20250319210444-create-stock-history.js
+|   ├── models/
+|   |   └── index.js
+|   |   └── product.js
+|   |   └── sale.js
+|   |   └── saleitem.js
+|   |   └── stockHistory.js
+|   |   └── user.js
+|   ├── routes/
+|   |   └── authRoutes.js
+|   |   └── dashboardRoutes.js
+|   |   └── index.js
+|   |   └── productRoutes.js
+|   |   └── saleItemRoutes.js
+|   |   └── saleRoutes.js
+|   |   └── userRoutes.js
+|   ├── utils/
+|   |   └── emailService.js
+│   └── app.js
 └── README.md
+└── Users.txt
 ```
 
 ---
