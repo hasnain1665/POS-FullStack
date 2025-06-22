@@ -23,6 +23,56 @@ A full-stack Point of Sale (POS) system designed to manage products, sales, and 
 
 ---
 
+## Screenshots
+
+### Login Page
+
+![Login Page](Screenshots/1.%20Login%20Page.png)
+
+### Signup Page
+
+![Signup Page](Screenshots/2.%20Signup%20Page.png)
+
+### Forgot Password Page
+
+![Forgot Password Page](Screenshots/3.%20Forgot%20Password%20Page.png)
+
+### Sales Dashboard Page
+
+![Sales Dashboard Page](Screenshots/4.%20Sales%20Dashboard%20Page.png)
+
+### Products Page
+
+![Products Page](Screenshots/5.%20Products%20Page.png)
+
+### Add Product Page
+
+![Add Product Page](Screenshots/6.%20Add%20Product%20Page.png)
+
+### Edit Product Page
+
+![Edit Product Page](Screenshots/7.%20Edit%20Product%20Page.png)
+
+### Sales Page
+
+![Sales Page](Screenshots/8.%20Sales%20Page.png)
+
+### Sale Details
+
+![Sale Details](Screenshots/9.%20Sale%20Details.png)
+
+### New Sale Page
+
+![New Sale Page](Screenshots/10.%20New%20Sale%20Page.png)
+
+### Users Page
+
+![Users Page](Screenshots/11.%20Users%20Page.png)
+
+### Add User Page
+
+![Add User Page](Screenshots/12.%20Add%20User.png)
+
 ## Tech Stack
 
 | Category         | Technology                    |
