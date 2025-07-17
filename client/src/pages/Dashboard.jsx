@@ -9,12 +9,16 @@ import {
   Alert,
   Spinner,
   InputGroup,
+  Badge,
 } from "react-bootstrap";
 import {
   FiDownload,
   FiCalendar,
   FiDollarSign,
   FiShoppingCart,
+  FiTrendingUp,
+  FiFilter,
+  FiRefreshCw,
 } from "react-icons/fi";
 import { useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -34,7 +38,14 @@ const DashboardPage = () => {
     loading: true,
     error: null,
     alert: null,
-    report: null, // Changed from pre-filled zeros to null
+    report: {
+      sales: [],
+      salesByDay: {},
+      totalSales: 0,
+      totalRevenue: 0,
+      totalItemsSold: 0,
+      discountsApplied: 0,
+    },
     filters: {
       period: "daily",
       startDate: null,
@@ -75,23 +86,29 @@ const DashboardPage = () => {
 
     try {
       const params = { period: state.filters.period };
-      
-      if (state.filters.period === "custom" && state.filters.startDate && state.filters.endDate) {
+
+      if (
+        state.filters.period === "custom" &&
+        state.filters.startDate &&
+        state.filters.endDate
+      ) {
         params.startDate = format(state.filters.startDate, "yyyy-MM-dd");
         params.endDate = format(state.filters.endDate, "yyyy-MM-dd");
       }
 
       const response = await getSalesReport(params);
-      console.log("API Response:", response); // Debug log
+      console.log("API Response:", response);
 
       if (!response) throw new Error("Empty response from server");
 
-      // Calculate salesByDay if not provided by backend
-      const salesByDay = response.sales?.reduce((acc, sale) => {
-        const date = sale.date ? format(parseISO(sale.date), "yyyy-MM-dd") : "unknown";
-        acc[date] = (acc[date] || 0) + (Number(sale.totalAmount) || 0);
-        return acc;
-      }, {}) || {};
+      const salesByDay =
+        response.sales?.reduce((acc, sale) => {
+          const date = sale.date
+            ? format(parseISO(sale.date), "yyyy-MM-dd")
+            : "unknown";
+          acc[date] = (acc[date] || 0) + (Number(sale.totalAmount) || 0);
+          return acc;
+        }, {}) || {};
 
       setState((prev) => ({
         ...prev,
@@ -118,7 +135,12 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchReport();
-  }, [state.filters.period, state.filters.startDate, state.filters.endDate, location.key]);
+  }, [
+    state.filters.period,
+    state.filters.startDate,
+    state.filters.endDate,
+    location.key,
+  ]);
 
   const handlePeriodChange = (period) => {
     setState((prev) => ({
@@ -144,6 +166,7 @@ const DashboardPage = () => {
   };
 
   const handleExport = async () => {
+    if (state.report.totalSales === 0) return;
     try {
       const params = {
         period: state.filters.period,
@@ -178,7 +201,14 @@ const DashboardPage = () => {
         <Sidebar />
         <main className="main-content">
           <header className="content-header">
-            <h2>Sales Dashboard</h2>
+            <div className="header-content">
+              <div className="header-text">
+                <h1 className="dashboard-title">Sales Dashboard</h1>
+                <p className="dashboard-subtitle">
+                  Monitor your sales performance
+                </p>
+              </div>
+            </div>
           </header>
           <div className="content-body">
             <AccessDeniedAlert />
@@ -193,7 +223,26 @@ const DashboardPage = () => {
       <Sidebar />
       <main className="main-content">
         <header className="content-header">
-          <h2>Sales Dashboard</h2>
+          <div className="header-content">
+            <div className="header-text">
+              <h1 className="dashboard-title">Sales Dashboard</h1>
+              <p className="dashboard-subtitle">
+                Monitor your sales performance and analytics
+              </p>
+            </div>
+            <div className="header-actions">
+              <Button
+                variant="outline-primary"
+                onClick={fetchReport}
+                disabled={state.loading}
+                size="sm"
+                className="refresh-btn"
+              >
+                <FiRefreshCw className={state.loading ? "spinning" : ""} />
+                {!screenSize.isMobile && " Refresh"}
+              </Button>
+            </div>
+          </div>
         </header>
 
         <div className="content-body">
@@ -202,20 +251,28 @@ const DashboardPage = () => {
               variant={state.alert.type}
               onClose={() => setState((prev) => ({ ...prev, alert: null }))}
               dismissible
-              className="mb-4"
+              className="dashboard-alert"
             >
               {state.alert.message}
             </Alert>
           )}
 
           {/* Filter Card */}
-          <Card className="filter-card mb-4">
+          <Card className="filter-card">
             <Card.Body>
-              <Row className="g-3 align-items-center">
+              <div className="filter-header">
+                <h6 className="filter-title">
+                  <FiFilter className="me-2" />
+                  Filters & Export
+                </h6>
+              </div>
+              <Row className="g-3 align-items-end">
                 <Col xs={12} md={screenSize.isTablet ? 12 : 4}>
+                  <Form.Label className="form-label">Period</Form.Label>
                   <Form.Select
                     value={state.filters.period}
                     onChange={(e) => handlePeriodChange(e.target.value)}
+                    className="form-select-custom"
                   >
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
@@ -226,7 +283,8 @@ const DashboardPage = () => {
 
                 {state.filters.period === "custom" && (
                   <Col xs={12} md={screenSize.isTablet ? 12 : 6}>
-                    <InputGroup>
+                    <Form.Label className="form-label">Date Range</Form.Label>
+                    <InputGroup className="date-range-input">
                       <InputGroup.Text>
                         <FiCalendar />
                       </InputGroup.Text>
@@ -238,6 +296,7 @@ const DashboardPage = () => {
                             : ""
                         }
                         onChange={(e) => handleDateChange(e, "startDate")}
+                        className="form-control-custom"
                       />
                       <Form.Control
                         type="date"
@@ -252,6 +311,7 @@ const DashboardPage = () => {
                             ? format(state.filters.startDate, "yyyy-MM-dd")
                             : undefined
                         }
+                        className="form-control-custom"
                       />
                     </InputGroup>
                   </Col>
@@ -261,11 +321,17 @@ const DashboardPage = () => {
                   <Button
                     variant="primary"
                     onClick={handleExport}
-                    disabled={!state.report || state.report.totalSales === 0}
-                    className="w-100"
+                    className="export-btn"
+                    title={
+                      state.report.totalSales === 0
+                        ? "No sales data to export"
+                        : ""
+                    }
                   >
-                    <FiDownload className="me-2" />
-                    {screenSize.isMobile ? "Export" : "Export CSV"}
+                    <>
+                      <FiDownload className="me-2" />
+                      {screenSize.isMobile ? "Export" : "Export CSV"}
+                    </>
                   </Button>
                 </Col>
               </Row>
@@ -273,84 +339,107 @@ const DashboardPage = () => {
           </Card>
 
           {state.loading ? (
-            <div className="text-center my-5">
-              <Spinner animation="border" />
-              <p className="mt-2">Loading dashboard data...</p>
+            <div className="loading-container">
+              <div className="loading-content">
+                <Spinner animation="border" variant="primary" />
+                <h5 className="loading-text">Loading dashboard data...</h5>
+                <p className="loading-subtext">
+                  Please wait while we fetch your sales analytics
+                </p>
+              </div>
             </div>
           ) : state.error ? (
-            <Alert variant="danger" className="mb-4">
-              {state.error}
-              <Button
-                variant="outline-danger"
-                onClick={fetchReport}
-                className="ms-3"
-              >
-                Retry
-              </Button>
+            <Alert variant="danger" className="error-alert">
+              <div className="error-content">
+                <h6 className="error-title">Error loading dashboard</h6>
+                <p className="error-message">{state.error}</p>
+                <Button
+                  variant="outline-danger"
+                  onClick={fetchReport}
+                  size="sm"
+                  className="retry-btn"
+                >
+                  <FiRefreshCw className="me-2" />
+                  Retry
+                </Button>
+              </div>
             </Alert>
           ) : state.report ? (
             <>
               {/* Summary Cards */}
-              <Row className="g-3 mb-4">
-                {[
-                  {
-                    icon: <FiShoppingCart size={screenSize.isMobile ? 20 : 24} />,
-                    title: "Total Sales",
-                    value: state.report.totalSales,
-                    color: "primary",
-                  },
-                  {
-                    icon: <FiDollarSign size={screenSize.isMobile ? 20 : 24} />,
-                    title: "Total Revenue",
-                    value: `$${state.report.totalRevenue.toFixed(2)}`,
-                    color: "success",
-                  },
-                  {
-                    icon: <FiShoppingCart size={screenSize.isMobile ? 20 : 24} />,
-                    title: "Items Sold",
-                    value: state.report.totalItemsSold,
-                    color: "info",
-                  },
-                  {
-                    icon: <FiDollarSign size={screenSize.isMobile ? 20 : 24} />,
-                    title: "Discounts",
-                    value: `$${state.report.discountsApplied.toFixed(2)}`,
-                    color: "warning",
-                  },
-                ].map((metric, index) => (
-                  <Col xs={6} md={3} key={index}>
-                    <Card className="metric-card h-100">
-                      <Card.Body>
-                        <div className="d-flex align-items-center">
-                          <div className={`metric-icon bg-${metric.color}`}>
-                            {metric.icon}
+              <div className="metrics-section">
+                <Row className="g-4">
+                  {[
+                    {
+                      icon: <FiShoppingCart size={24} />,
+                      title: "Total Sales",
+                      value: state.report.totalSales,
+                      color: "primary",
+                    },
+                    {
+                      icon: <FiDollarSign size={24} />,
+                      title: "Total Revenue",
+                      value: `$${state.report.totalRevenue.toLocaleString(
+                        "en-US",
+                        { minimumFractionDigits: 2 }
+                      )}`,
+                      color: "success",
+                    },
+                    {
+                      icon: <FiTrendingUp size={24} />,
+                      title: "Items Sold",
+                      value: state.report.totalItemsSold.toLocaleString(),
+                      color: "info",
+                    },
+                    {
+                      icon: <FiDollarSign size={24} />,
+                      title: "Discounts Applied",
+                      value: `$${state.report.discountsApplied.toLocaleString(
+                        "en-US",
+                        { minimumFractionDigits: 2 }
+                      )}`,
+                      color: "warning",
+                    },
+                  ].map((metric, index) => (
+                    <Col xs={12} sm={6} lg={3} key={index}>
+                      <Card className="metric-card">
+                        <Card.Body>
+                          <div className="metric-header">
+                            <div className={`metric-icon bg-${metric.color}`}>
+                              {metric.icon}
+                            </div>
                           </div>
-                          <div className="ms-3">
-                            <h6 className="metric-title mb-1">{metric.title}</h6>
-                            <h4 className="metric-value mb-0">{metric.value}</h4>
+                          <div className="metric-content">
+                            <h3 className="metric-value">{metric.value}</h3>
+                            <p className="metric-title">{metric.title}</p>
                           </div>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              </div>
 
               {/* Sales Table */}
-              <Card className="mb-4">
-                <Card.Header>
-                  <h5>Sales by Day</h5>
+              <Card className="data-table-card">
+                <Card.Header className="table-header">
+                  <div className="table-header-content">
+                    <h5 className="table-title">Sales by Day</h5>
+                    <Badge bg="light" text="dark" className="record-count">
+                      {Object.keys(state.report.salesByDay).length} records
+                    </Badge>
+                  </div>
                 </Card.Header>
-                <Card.Body>
+                <Card.Body className="table-body">
                   {Object.keys(state.report.salesByDay).length > 0 ? (
                     <div className="table-responsive">
-                      <Table striped hover>
+                      <Table className="data-table">
                         <thead>
                           <tr>
                             <th>Date</th>
-                            <th>Sales</th>
+                            <th>Sales Count</th>
                             <th>Revenue</th>
-                            <th>Items</th>
+                            <th>Items Sold</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -359,7 +448,8 @@ const DashboardPage = () => {
                               const daySales = state.report.sales.filter(
                                 (sale) =>
                                   sale.date &&
-                                  format(parseISO(sale.date), "yyyy-MM-dd") === date
+                                  format(parseISO(sale.date), "yyyy-MM-dd") ===
+                                    date
                               );
                               const itemsSold = daySales.reduce(
                                 (sum, sale) =>
@@ -373,10 +463,23 @@ const DashboardPage = () => {
 
                               return (
                                 <tr key={date}>
-                                  <td>{date}</td>
-                                  <td>{daySales.length}</td>
-                                  <td>${Number(revenue).toFixed(2)}</td>
-                                  <td>{itemsSold}</td>
+                                  <td className="date-cell">
+                                    {format(parseISO(date), "MMM dd, yyyy")}
+                                  </td>
+                                  <td className="sales-count">
+                                    <Badge bg="primary" pill>
+                                      {daySales.length}
+                                    </Badge>
+                                  </td>
+                                  <td className="revenue-cell">
+                                    $
+                                    {Number(revenue).toLocaleString("en-US", {
+                                      minimumFractionDigits: 2,
+                                    })}
+                                  </td>
+                                  <td className="items-cell">
+                                    {itemsSold.toLocaleString()}
+                                  </td>
                                 </tr>
                               );
                             }
@@ -385,7 +488,18 @@ const DashboardPage = () => {
                       </Table>
                     </div>
                   ) : (
-                    <Alert variant="info">No sales data available</Alert>
+                    <div className="no-data-container">
+                      <div className="no-data-content">
+                        <FiShoppingCart size={48} className="no-data-icon" />
+                        <h6 className="no-data-title">
+                          No sales data available
+                        </h6>
+                        <p className="no-data-text">
+                          There are no sales records for the selected period.
+                          Try adjusting your filters or check back later.
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </Card.Body>
               </Card>

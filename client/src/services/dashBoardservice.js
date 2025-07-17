@@ -9,18 +9,19 @@ export const getSalesReport = async (params = {}) => {
       console.error("No token found!");
       return null;
     }
-    console.log("Request params:", params); 
 
-    const response = await axios.get(API_URL, {
+    const config = {
       params,
       headers: { Authorization: `Bearer ${token}` },
       withCredentials: true,
-    });
-    console.log("Response data:", response.data);
+    };
 
+    // If CSV export is requested, change responseType to 'blob'
     if (params.format === "csv") {
-      return response.data;
+      config.responseType = "blob";
     }
+
+    const response = await axios.get(API_URL, config);
 
     return response.data;
   } catch (error) {

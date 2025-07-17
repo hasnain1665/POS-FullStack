@@ -13,6 +13,11 @@ import {
   Card,
   Pagination,
   InputGroup,
+  Container,
+  OverlayTrigger,
+  Tooltip,
+  Dropdown,
+  ButtonGroup,
 } from "react-bootstrap";
 import {
   FiTrash2,
@@ -22,6 +27,15 @@ import {
   FiCalendar,
   FiPercent,
   FiDollarSign,
+  FiEye,
+  FiFilter,
+  FiRefreshCw,
+  FiDownload,
+  FiMoreHorizontal,
+  FiCreditCard,
+  FiShoppingCart,
+  FiTrendingUp,
+  FiBarChart2,
 } from "react-icons/fi";
 import Sidebar from "../components/Sidebar";
 import { checkAccess, AccessDeniedAlert } from "../utils/auth";
@@ -35,6 +49,7 @@ import {
   extractCashiersFromSales,
 } from "../services/salesService";
 import { getProducts } from "../services/productService";
+import "../styles/Sales.css";
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat("en-US", {
@@ -84,11 +99,18 @@ const initialState = {
     discountValue: 0,
     discountReason: "",
   },
+  stats: {
+    totalRevenue: 0,
+    totalSales: 0,
+    averageOrderValue: 0,
+  },
 };
 
 const SalesPage = () => {
   const { user } = useSelector((state) => state.auth);
   const [state, setState] = useState(initialState);
+  const [showFilters, setShowFilters] = useState(false);
+  const [creatingSale, setCreatingSale] = useState(false);
   const searchInputRef = useRef(null);
   const hasAccess = checkAccess(["admin", "manager", "cashier"]);
   const canModify = checkAccess(["admin", "manager"]);
@@ -102,6 +124,32 @@ const SalesPage = () => {
       return subtotal * (1 - (discountValue || 0) / 100);
     }
     return Math.max(0, subtotal - (discountValue || 0));
+  };
+
+  // Fetch all sales for stats calculation
+  const fetchAllSalesForStats = useCallback(async () => {
+    try {
+      // Fetch all sales without pagination for stats calculation
+      const response = await getSales({
+        page: 1,
+        limit: 10000, // Large number to get all sales
+      });
+      return response.sales || [];
+    } catch (error) {
+      console.error("Failed to fetch all sales for stats:", error);
+      return [];
+    }
+  }, []);
+
+  const calculateStats = (allSales) => {
+    const totalRevenue = allSales.reduce(
+      (sum, sale) => sum + parseFloat(sale.totalAmount || 0),
+      0
+    );
+    const totalSales = allSales.length;
+    const averageOrderValue = totalSales > 0 ? totalRevenue / totalSales : 0;
+
+    return { totalRevenue, totalSales, averageOrderValue };
   };
 
   const fetchProducts = useCallback(async () => {
@@ -137,33 +185,32 @@ const SalesPage = () => {
 
   const fetchSales = useCallback(async () => {
     if (!hasAccess) return { sales: [], totalPages: 1, totalSales: 0 };
-  
+
     const { appliedFilters, pagination } = state;
     try {
       const isSaleIdSearch = /^\d+$/.test(appliedFilters.search.trim());
-  
+
       if (isSaleIdSearch) {
         const response = await getSales({
           saleId: appliedFilters.search.trim(),
           page: pagination.currentPage,
           limit: pagination.limit,
         });
-  
-        // If no sales are found for the specific ID search
+
         if (!response.sales || response.sales.length === 0) {
-          setState(prev => ({
+          setState((prev) => ({
             ...prev,
             alert: {
               type: "warning",
-              message: `Sale #${appliedFilters.search.trim()} not found`
-            }
+              message: `Sale #${appliedFilters.search.trim()} not found`,
+            },
           }));
           return { sales: [], totalPages: 1, totalSales: 0 };
         }
-  
+
         return response;
       }
-  
+
       return await getSales({
         startDate: appliedFilters.startDate?.toISOString(),
         endDate: appliedFilters.endDate?.toISOString(),
@@ -175,26 +222,25 @@ const SalesPage = () => {
       });
     } catch (error) {
       console.error("Error fetching sales:", error);
-      
-      // Handle 404 errors specifically
+
       if (error.response && error.response.status === 404) {
-        setState(prev => ({
+        setState((prev) => ({
           ...prev,
           alert: {
             type: "warning",
-            message: "The requested sale was not found"
-          }
+            message: "The requested sale was not found",
+          },
         }));
       } else {
-        setState(prev => ({
+        setState((prev) => ({
           ...prev,
           alert: {
             type: "danger",
-            message: error.message || "Failed to load sales data"
-          }
+            message: error.message || "Failed to load sales data",
+          },
         }));
       }
-      
+
       throw error;
     }
   }, [state.appliedFilters, state.pagination.currentPage, hasAccess]);
@@ -215,20 +261,24 @@ const SalesPage = () => {
       try {
         setState((prev) => ({ ...prev, loading: true, error: null }));
 
-        const [products, salesData, cashiers] = await Promise.all([
-          fetchProducts(),
-          fetchSales(),
-          fetchCashiers(),
-        ]);
+        const [products, salesData, cashiers, allSalesForStats] =
+          await Promise.all([
+            fetchProducts(),
+            fetchSales(),
+            fetchCashiers(),
+            fetchAllSalesForStats(), // Fetch all sales for accurate stats
+          ]);
 
         if (isMounted) {
           clearTimeout(timeoutId);
+          const stats = calculateStats(allSalesForStats); // Use all sales for stats
           setState((prev) => ({
             ...prev,
             products,
             sales: salesData.sales || [],
             cashiers,
             loading: false,
+            stats,
             pagination: {
               ...prev.pagination,
               totalPages: salesData.totalPages || 1,
@@ -272,7 +322,7 @@ const SalesPage = () => {
       isMounted = false;
       clearTimeout(timeoutId);
     };
-  }, [fetchProducts, fetchSales, fetchCashiers]);
+  }, [fetchProducts, fetchSales, fetchCashiers, fetchAllSalesForStats]);
 
   useEffect(() => {
     if (state.alert) {
@@ -295,7 +345,11 @@ const SalesPage = () => {
     const [start, end] = dates;
     setState((prev) => ({
       ...prev,
-      currentFilters: { ...prev.currentFilters, startDate: start, endDate: end },
+      currentFilters: {
+        ...prev.currentFilters,
+        startDate: start,
+        endDate: end,
+      },
     }));
   };
 
@@ -366,10 +420,8 @@ const SalesPage = () => {
       }));
       return;
     }
-
+    setCreatingSale(true);
     try {
-      setState((prev) => ({ ...prev, loading: true }));
-
       const saleData = {
         items: state.modals.currentSaleItems.map((item) => ({
           productId: item.productId,
@@ -388,7 +440,6 @@ const SalesPage = () => {
 
       setState((prev) => ({
         ...prev,
-        loading: false,
         alert: { type: "success", message: "Sale created successfully!" },
         modals: {
           ...prev.modals,
@@ -400,15 +451,19 @@ const SalesPage = () => {
         },
       }));
 
-      const [products, salesData] = await Promise.all([
+      // Refresh data after successful creation
+      const [products, salesData, allSalesForStats] = await Promise.all([
         fetchProducts(),
         fetchSales(),
+        fetchAllSalesForStats(),
       ]);
 
+      const stats = calculateStats(allSalesForStats);
       setState((prev) => ({
         ...prev,
         products,
         sales: salesData.sales || [],
+        stats,
         pagination: {
           ...prev.pagination,
           totalPages: salesData.totalPages || 1,
@@ -429,9 +484,10 @@ const SalesPage = () => {
 
       setState((prev) => ({
         ...prev,
-        loading: false,
         alert: { type: "danger", message: errorMessage },
       }));
+    } finally {
+      setCreatingSale(false);
     }
   };
 
@@ -490,15 +546,19 @@ const SalesPage = () => {
           },
         }));
 
-        const [products, salesData] = await Promise.all([
+        // Refresh data after successful deletion
+        const [products, salesData, allSalesForStats] = await Promise.all([
           fetchProducts(),
           fetchSales(),
+          fetchAllSalesForStats(),
         ]);
 
+        const stats = calculateStats(allSalesForStats);
         setState((prev) => ({
           ...prev,
           products,
           sales: salesData.sales || [],
+          stats,
           pagination: {
             ...prev.pagination,
             totalPages: salesData.totalPages || 1,
@@ -611,17 +671,33 @@ const SalesPage = () => {
     state.modals.discountValue
   );
 
+  const getStatusBadge = (sale) => {
+    const now = new Date();
+    const saleDate = new Date(sale.date);
+    const daysDiff = Math.floor((now - saleDate) / (1000 * 60 * 60 * 24));
+
+    if (daysDiff === 0) return <Badge bg="success">Today</Badge>;
+    if (daysDiff === 1) return <Badge bg="info">Yesterday</Badge>;
+    if (daysDiff <= 7) return <Badge bg="warning">This Week</Badge>;
+    return <Badge bg="secondary">Older</Badge>;
+  };
+
   if (!hasAccess) {
     return (
       <div className="dashboard-container">
         <Sidebar />
         <main className="main-content">
-          <header className="content-header">
-            <h2>Manage Sales</h2>
-          </header>
-          <div className="content-body">
+          <Container fluid className="py-4">
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <div>
+                <h1 className="h3 mb-0 text-gray-800">Sales Management</h1>
+                <p className="text-muted mb-0">
+                  Manage your sales transactions
+                </p>
+              </div>
+            </div>
             <AccessDeniedAlert />
-          </div>
+          </Container>
         </main>
       </div>
     );
@@ -632,21 +708,32 @@ const SalesPage = () => {
       <div className="dashboard-container">
         <Sidebar />
         <main className="main-content">
-          <header className="content-header">
-            <h2>Manage Sales</h2>
-          </header>
-          <div className="content-body">
+          <Container fluid className="py-4">
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <div>
+                <h1 className="h3 mb-0 text-gray-800">Sales Management</h1>
+                <p className="text-muted mb-0">
+                  Manage your sales transactions
+                </p>
+              </div>
+            </div>
             <Alert variant="danger" className="mb-4">
-              {state.error}
-              <Button
-                variant="outline-danger"
-                className="ms-3"
-                onClick={() => window.location.reload()}
-              >
-                Retry
-              </Button>
+              <div className="d-flex align-items-center">
+                <div className="flex-grow-1">
+                  <h6 className="mb-1">Error Loading Data</h6>
+                  <p className="mb-0">{state.error}</p>
+                </div>
+                <Button
+                  variant="outline-danger"
+                  onClick={() => window.location.reload()}
+                  className="d-flex align-items-center gap-2"
+                >
+                  <FiRefreshCw size={16} />
+                  Retry
+                </Button>
+              </div>
             </Alert>
-          </div>
+          </Container>
         </main>
       </div>
     );
@@ -657,15 +744,21 @@ const SalesPage = () => {
       <div className="dashboard-container">
         <Sidebar />
         <main className="main-content">
-          <header className="content-header">
-            <h2>Manage Sales</h2>
-          </header>
-          <div className="content-body text-center my-5">
-            <Spinner animation="border" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </Spinner>
-            <p className="mt-2">Loading sales data...</p>
-          </div>
+          <Container fluid className="py-4">
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <div>
+                <h1 className="h3 mb-0 text-gray-800">Sales Management</h1>
+                <p className="text-muted mb-0">
+                  Manage your sales transactions
+                </p>
+              </div>
+            </div>
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="primary" className="mb-3" />
+              <h5 className="text-muted">Loading sales data...</h5>
+              <p className="text-muted">Please wait while we fetch your data</p>
+            </div>
+          </Container>
         </main>
       </div>
     );
@@ -675,370 +768,523 @@ const SalesPage = () => {
     <div className="dashboard-container">
       <Sidebar />
       <main className="main-content">
-        <header className="content-header">
-          <h2>Manage Sales</h2>
-        </header>
+        <Container fluid className="py-4">
+          {/* Header Section */}
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h1 className="h3 mb-0 text-gray-800">Sales Management</h1>
+              <p className="text-muted mb-0">
+                Monitor and manage your sales transactions
+              </p>
+            </div>
+            <div className="d-flex gap-2">
+              <Button
+                variant="outline-primary"
+                className="d-flex align-items-center gap-2"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <FiFilter size={16} />
+                {showFilters ? "Hide Filters" : "Show Filters"}
+              </Button>
+              <Button
+                variant="success"
+                onClick={() =>
+                  setState((prev) => ({
+                    ...prev,
+                    modals: {
+                      ...prev.modals,
+                      showSaleModal: true,
+                      currentSaleItems: [],
+                    },
+                  }))
+                }
+                disabled={state.products.length === 0}
+                className="d-flex align-items-center gap-2"
+              >
+                <FiPlus size={16} />
+                New Sale
+              </Button>
+            </div>
+          </div>
 
-        <div className="content-body">
+          {/* Statistics Cards */}
+          <Row className="mb-4">
+            <Col md={4}>
+              <Card className="border-0 shadow-sm">
+                <Card.Body className="p-4">
+                  <div className="d-flex align-items-center">
+                    <div className="flex-shrink-0">
+                      <div className="bg-primary bg-opacity-10 p-3 rounded-circle">
+                        <FiDollarSign className="text-primary" size={24} />
+                      </div>
+                    </div>
+                    <div className="flex-grow-1 ms-3">
+                      <div className="text-muted small">Total Revenue</div>
+                      <div className="h4 mb-0">
+                        {formatCurrency(state.stats.totalRevenue)}
+                      </div>
+                    </div>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={4}>
+              <Card className="border-0 shadow-sm">
+                <Card.Body className="p-4">
+                  <div className="d-flex align-items-center">
+                    <div className="flex-shrink-0">
+                      <div className="bg-success bg-opacity-10 p-3 rounded-circle">
+                        <FiShoppingCart className="text-success" size={24} />
+                      </div>
+                    </div>
+                    <div className="flex-grow-1 ms-3">
+                      <div className="text-muted small">Total Sales</div>
+                      <div className="h4 mb-0">
+                        {state.stats.totalSales.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={4}>
+              <Card className="border-0 shadow-sm">
+                <Card.Body className="p-4">
+                  <div className="d-flex align-items-center">
+                    <div className="flex-shrink-0">
+                      <div className="bg-info bg-opacity-10 p-3 rounded-circle">
+                        <FiTrendingUp className="text-info" size={24} />
+                      </div>
+                    </div>
+                    <div className="flex-grow-1 ms-3">
+                      <div className="text-muted small">Avg. Order Value</div>
+                      <div className="h4 mb-0">
+                        {formatCurrency(state.stats.averageOrderValue)}
+                      </div>
+                    </div>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Alert Section */}
           {state.alert && (
             <Alert
               variant={state.alert.type}
               onClose={() => setState((prev) => ({ ...prev, alert: null }))}
               dismissible
-              className="mb-4"
+              className="mb-4 border-0 shadow-sm"
             >
               {state.alert.message}
             </Alert>
           )}
 
-          <Card className="filter-card mb-4">
-            <Card.Body className="p-3">
-              <Row className="g-3 mb-3">
-                <Col md={4}>
-                  <Form.Group controlId="searchSales">
-                    <Form.Label className="small text-muted mb-1">
-                      Search Sales
-                    </Form.Label>
-                    <InputGroup>
-                      <InputGroup.Text className="bg-white">
-                        <FiSearch className="text-secondary" />
-                      </InputGroup.Text>
-                      <Form.Control
-                        ref={searchInputRef}
-                        type="text"
-                        name="search"
-                        placeholder="Search by Sale ID..."
-                        value={state.currentFilters.search}
-                        onChange={handleFilterChange}
-                        onKeyDown={(e) => e.key === "Enter" && applyFilters()}
-                        className="border-start-0"
-                      />
-                    </InputGroup>
-                  </Form.Group>
-                </Col>
-
-                <Col md={4}>
-                  <Form.Group controlId="dateRange">
-                    <Form.Label className="small text-muted mb-1">
-                      Date Range
-                    </Form.Label>
-                    <div className="d-flex align-items-center">
-                      <DatePicker
-                        selectsRange
-                        startDate={state.currentFilters.startDate}
-                        endDate={state.currentFilters.endDate}
-                        onChange={handleDateChange}
-                        isClearable
-                        placeholderText="Select date range"
-                        className="form-control flex-grow-1"
-                      />
-                      <Button
-                        variant="outline-secondary"
-                        className="ms-2 d-flex align-items-center"
-                        style={{ height: "38px", width: "38px" }}
-                        onClick={() =>
-                          document
-                            .querySelector(
-                              ".react-datepicker__input-container input"
-                            )
-                            ?.focus()
-                        }
-                      >
-                        <FiCalendar className="text-secondary" />
-                      </Button>
-                    </div>
-                  </Form.Group>
-                </Col>
-
-                <Col md={4}>
-                  <Form.Group controlId="amountRange">
-                    <Form.Label className="small text-muted mb-1">
-                      Amount Range ($)
-                    </Form.Label>
-                    <div className="d-flex gap-2">
-                      <Form.Control
-                        type="number"
-                        name="minAmount"
-                        placeholder="Min amount"
-                        value={state.currentFilters.minAmount}
-                        onChange={handleFilterChange}
-                        min="0"
-                        step="0.01"
-                      />
-                      <Form.Control
-                        type="number"
-                        name="maxAmount"
-                        placeholder="Max amount"
-                        value={state.currentFilters.maxAmount}
-                        onChange={handleFilterChange}
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                  </Form.Group>
-                </Col>
-              </Row>
-
-              <Row className="g-3 align-items-end">
-                {user.role === "admin" && (
+          {/* Filters Section */}
+          {showFilters && (
+            <Card className="border-0 shadow-sm mb-4">
+              <Card.Header className="bg-light border-0">
+                <h6 className="mb-0 d-flex align-items-center gap-2">
+                  <FiFilter size={16} />
+                  Filter Sales
+                </h6>
+              </Card.Header>
+              <Card.Body className="p-4">
+                <Row className="g-3 mb-3">
                   <Col md={4}>
-                    <Form.Group controlId="cashierFilter">
-                      <Form.Label className="small text-muted mb-1">
-                        Filter by Cashier
+                    <Form.Group>
+                      <Form.Label className="small fw-medium text-muted mb-2">
+                        Search Sales
                       </Form.Label>
                       <InputGroup>
-                        <InputGroup.Text className="bg-white">
-                          <FiUser className="text-secondary" />
+                        <InputGroup.Text className="bg-light border-end-0">
+                          <FiSearch className="text-muted" size={16} />
                         </InputGroup.Text>
-                        <Form.Select
-                          name="cashierId"
-                          value={state.currentFilters.cashierId}
+                        <Form.Control
+                          ref={searchInputRef}
+                          type="text"
+                          name="search"
+                          placeholder="Search by Sale ID..."
+                          value={state.currentFilters.search}
                           onChange={handleFilterChange}
-                          className="border-start-0"
-                        >
-                          <option value="">All Cashiers</option>
-                          {state.cashiers.map((cashier) => (
-                            <option key={cashier.id} value={cashier.id}>
-                              {cashier.name}
-                            </option>
-                          ))}
-                        </Form.Select>
+                          onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+                          className="border-start-0 bg-light"
+                        />
                       </InputGroup>
                     </Form.Group>
                   </Col>
-                )}
 
-                <Col md={user.role === "admin" ? 8 : 12}>
-                  <div className="d-flex justify-content-end gap-2">
-                    <Button
-                      variant="outline-secondary"
-                      onClick={resetFilters}
-                      className="px-4"
-                    >
-                      Reset
-                    </Button>
-                    <Button
-                      variant="primary"
-                      onClick={applyFilters}
-                      className="px-4"
-                    >
-                      Apply Filters
-                    </Button>
-                    <Button
-                      variant="success"
-                      onClick={() =>
-                        setState((prev) => ({
-                          ...prev,
-                          modals: {
-                            ...prev.modals,
-                            showSaleModal: true,
-                            currentSaleItems: [],
-                          },
-                        }))
-                      }
-                      disabled={state.products.length === 0}
-                      className="d-flex align-items-center gap-1 px-4"
-                    >
-                      <FiPlus size={18} />
-                      <span>New Sale</span>
-                    </Button>
+                  <Col md={4}>
+                    <Form.Group>
+                      <Form.Label className="small fw-medium text-muted mb-2">
+                        Date Range
+                      </Form.Label>
+                      <div className="input-group">
+                        <DatePicker
+                          selectsRange
+                          startDate={state.currentFilters.startDate}
+                          endDate={state.currentFilters.endDate}
+                          onChange={handleDateChange}
+                          isClearable
+                          placeholderText="Select date range"
+                          className="form-control bg-light"
+                        />
+                        <Button
+                          variant="outline-secondary"
+                          className="d-flex align-items-center justify-content-center"
+                          style={{ width: "40px" }}
+                          onClick={() =>
+                            document
+                              .querySelector(
+                                ".react-datepicker__input-container input"
+                              )
+                              .focus()
+                          }
+                        >
+                          <FiCalendar size={16} />
+                        </Button>
+                      </div>
+                    </Form.Group>
+                  </Col>
+
+                  <Col md={4}>
+                    <Form.Group>
+                      <Form.Label className="small fw-medium text-muted mb-2">
+                        Cashier
+                      </Form.Label>
+                      <Form.Select
+                        name="cashierId"
+                        value={state.currentFilters.cashierId}
+                        onChange={handleFilterChange}
+                        className="bg-light"
+                      >
+                        <option value="">All Cashiers</option>
+                        {state.cashiers.map((cashier) => (
+                          <option key={cashier.id} value={cashier.id}>
+                            {cashier.name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row className="g-3 mb-3">
+                  <Col md={6}>
+                    <Form.Group>
+                      <Form.Label className="small fw-medium text-muted mb-2">
+                        Amount Range
+                      </Form.Label>
+                      <Row className="g-2">
+                        <Col>
+                          <Form.Control
+                            type="number"
+                            name="minAmount"
+                            placeholder="Min amount"
+                            value={state.currentFilters.minAmount}
+                            onChange={handleFilterChange}
+                            className="bg-light"
+                          />
+                        </Col>
+                        <Col>
+                          <Form.Control
+                            type="number"
+                            name="maxAmount"
+                            placeholder="Max amount"
+                            value={state.currentFilters.maxAmount}
+                            onChange={handleFilterChange}
+                            className="bg-light"
+                          />
+                        </Col>
+                      </Row>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <div className="d-flex gap-2">
+                  <Button
+                    variant="primary"
+                    onClick={applyFilters}
+                    className="d-flex align-items-center gap-2"
+                  >
+                    <FiSearch size={16} />
+                    Apply Filters
+                  </Button>
+                  <Button
+                    variant="outline-secondary"
+                    onClick={resetFilters}
+                    className="d-flex align-items-center gap-2"
+                  >
+                    <FiRefreshCw size={16} />
+                    Reset
+                  </Button>
+                </div>
+              </Card.Body>
+            </Card>
+          )}
+
+          {/* Sales Table */}
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-light border-0 d-flex justify-content-between align-items-center">
+              <h6 className="mb-0 d-flex align-items-center gap-2">
+                <FiBarChart2 size={16} />
+                Sales Records
+              </h6>
+              <Badge bg="primary" className="fs-6">
+                {state.pagination.totalSales} Total
+              </Badge>
+            </Card.Header>
+            <Card.Body className="p-0">
+              {state.sales.length === 0 ? (
+                <div className="text-center py-5">
+                  <div className="text-muted mb-3">
+                    <FiShoppingCart size={48} />
                   </div>
-                </Col>
-              </Row>
+                  <h5 className="text-muted">No sales found</h5>
+                  <p className="text-muted mb-0">
+                    {Object.values(state.appliedFilters).some((val) => val)
+                      ? "Try adjusting your filters or search criteria"
+                      : "Start by creating your first sale"}
+                  </p>
+                </div>
+              ) : (
+                <Table responsive className="mb-0">
+                  <thead className="bg-light">
+                    <tr>
+                      <th className="border-0 fw-semibold text-muted small px-4 py-3">
+                        Sale ID
+                      </th>
+                      <th className="border-0 fw-semibold text-muted small px-4 py-3">
+                        Date
+                      </th>
+                      <th className="border-0 fw-semibold text-muted small px-4 py-3">
+                        Cashier
+                      </th>
+                      <th className="border-0 fw-semibold text-muted small px-4 py-3">
+                        Amount
+                      </th>
+                      <th className="border-0 fw-semibold text-muted small px-4 py-3">
+                        Status
+                      </th>
+                      <th className="border-0 fw-semibold text-muted small px-4 py-3 text-end">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.sales.map((sale) => (
+                      <tr key={sale.id} className="border-bottom">
+                        <td className="px-4 py-3">
+                          <div className="fw-medium text-dark">#{sale.id}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-muted small">
+                            {new Date(sale.date).toLocaleDateString()}
+                          </div>
+                          <div className="text-muted small">
+                            {new Date(sale.date).toLocaleTimeString()}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="d-flex align-items-center gap-2">
+                            <div className="bg-primary bg-opacity-10 p-2 rounded-circle">
+                              <FiUser className="text-primary" size={14} />
+                            </div>
+                            <div>
+                              <div className="fw-medium text-dark">
+                                {sale.cashier?.name || "Unknown"}
+                              </div>
+                              <div className="text-muted small">
+                                ID: {sale.cashier_id || "N/A"}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="fw-semibold text-success">
+                            {formatCurrency(sale.totalAmount)}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">{getStatusBadge(sale)}</td>
+                        <td className="px-4 py-3 text-end">
+                          <ButtonGroup>
+                            <OverlayTrigger
+                              placement="top"
+                              overlay={<Tooltip>View Details</Tooltip>}
+                            >
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => handleViewDetails(sale.id)}
+                                className="d-flex align-items-center justify-content-center"
+                                style={{ width: "36px", height: "36px" }}
+                              >
+                                <FiEye size={14} />
+                              </Button>
+                            </OverlayTrigger>
+                            {canModify && (
+                              <OverlayTrigger
+                                placement="top"
+                                overlay={<Tooltip>Process Refund</Tooltip>}
+                              >
+                                <Button
+                                  variant="outline-danger"
+                                  size="sm"
+                                  onClick={() => handleDelete(sale.id)}
+                                  className="d-flex align-items-center justify-content-center"
+                                  style={{ width: "36px", height: "36px" }}
+                                >
+                                  <FiTrash2 size={14} />
+                                </Button>
+                              </OverlayTrigger>
+                            )}
+                          </ButtonGroup>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
             </Card.Body>
           </Card>
 
-          <div className="table-responsive">
-            <Table striped hover className="sales-table">
-              <thead>
-                <tr>
-                  <th>Sale ID</th>
-                  <th>Date</th>
-                  <th>Cashier</th>
-                  <th>Items</th>
-                  <th className="text-end">Total</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.sales.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-4">
-                      No sales found
-                    </td>
-                  </tr>
-                ) : (
-                  state.sales.map((sale) => (
-                    <tr key={sale.id}>
-                      <td>{sale.id}</td>
-                      <td>{new Date(sale.date).toLocaleString()}</td>
-                      <td>
-                        {sale.cashier?.name ||
-                          state.cashiers.find((c) => c.id === sale.cashier_id)
-                            ?.name ||
-                          `Cashier #${sale.cashier_id}`}
-                        {sale.cashier_id === user.id && (
-                          <Badge bg="info" className="ms-2">
-                            You
-                          </Badge>
-                        )}
-                      </td>
-                      <td>
-                        {sale.saleItems?.length || 0} items
-                        <Button
-                          variant="link"
-                          size="sm"
-                          onClick={() => handleViewDetails(sale.id)}
-                          className="p-0 ms-2"
-                        >
-                          View
-                        </Button>
-                      </td>
-                      <td className="text-end">
-                        {formatCurrency(sale.totalAmount)}
-                      </td>
-                      <td className="text-center">
-                        <div className="d-flex gap-2 justify-content-center">
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            onClick={() => handleDelete(sale.id)}
-                            disabled={!canModify}
-                            title={
-                              !canModify
-                                ? "Requires admin/manager access"
-                                : "Process refund"
-                            }
-                          >
-                            <FiTrash2 />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </Table>
-          </div>
-
+          {/* Pagination */}
           {state.pagination.totalPages > 1 && (
-            <div className="pagination-wrapper">
+            <div className="d-flex justify-content-center mt-4">
               <Pagination>
-                <Pagination.Prev
+                <Pagination.First
+                  onClick={() => handlePageChange(1)}
                   disabled={state.pagination.currentPage === 1}
+                />
+                <Pagination.Prev
                   onClick={() =>
                     handlePageChange(state.pagination.currentPage - 1)
                   }
+                  disabled={state.pagination.currentPage === 1}
                 />
-                {Array.from({ length: state.pagination.totalPages }, (_, i) => (
-                  <Pagination.Item
-                    key={i + 1}
-                    active={i + 1 === state.pagination.currentPage}
-                    onClick={() => handlePageChange(i + 1)}
-                  >
-                    {i + 1}
-                  </Pagination.Item>
-                ))}
+
+                {[...Array(state.pagination.totalPages)].map((_, index) => {
+                  const page = index + 1;
+                  const isCurrentPage = page === state.pagination.currentPage;
+
+                  if (
+                    page === 1 ||
+                    page === state.pagination.totalPages ||
+                    (page >= state.pagination.currentPage - 2 &&
+                      page <= state.pagination.currentPage + 2)
+                  ) {
+                    return (
+                      <Pagination.Item
+                        key={page}
+                        active={isCurrentPage}
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </Pagination.Item>
+                    );
+                  } else if (
+                    page === state.pagination.currentPage - 3 ||
+                    page === state.pagination.currentPage + 3
+                  ) {
+                    return <Pagination.Ellipsis key={page} />;
+                  }
+                  return null;
+                })}
+
                 <Pagination.Next
+                  onClick={() =>
+                    handlePageChange(state.pagination.currentPage + 1)
+                  }
                   disabled={
                     state.pagination.currentPage === state.pagination.totalPages
                   }
-                  onClick={() =>
-                    handlePageChange(state.pagination.currentPage + 1)
+                />
+                <Pagination.Last
+                  onClick={() => handlePageChange(state.pagination.totalPages)}
+                  disabled={
+                    state.pagination.currentPage === state.pagination.totalPages
                   }
                 />
               </Pagination>
             </div>
           )}
-        </div>
+        </Container>
+      </main>
 
-        {/* New Sale Modal */}
-        <Modal
-          show={state.modals.showSaleModal}
-          onHide={() =>
-            setState((prev) => ({
-              ...prev,
-              modals: {
-                ...prev.modals,
-                showSaleModal: false,
-                currentSaleItems: [],
-                discountType: "percentage",
-                discountValue: 0,
-                discountReason: "",
-              },
-            }))
-          }
-          size="lg"
-          centered
-        >
-          <Modal.Header closeButton>
-            <Modal.Title>Create New Sale</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Row>
-              <Col md={6}>
-                <h5>Add Products</h5>
-                <div className="mb-3">
-                  <Form.Label>Product ID</Form.Label>
-                  <Form.Control
-                    type="number"
-                    placeholder="Enter Product ID"
-                    value={state.modals.productIdInput}
-                    onChange={(e) => {
-                      const productId = e.target.value;
-                      const product = state.products.find(
-                        (p) => p.id === parseInt(productId)
-                      );
-                      setState((prev) => ({
-                        ...prev,
-                        modals: {
-                          ...prev.modals,
-                          productIdInput: productId,
-                          selectedProduct: product || null,
-                        },
-                      }));
-                    }}
-                    min="1"
-                  />
-                </div>
-
-                {state.modals.selectedProduct && (
-                  <div className="product-details mb-3 p-3 bg-light rounded">
-                    <h6>{state.modals.selectedProduct.name}</h6>
-                    <p>
-                      Price:{" "}
-                      {formatCurrency(state.modals.selectedProduct.price)}
-                    </p>
-                    <p>Stock: {state.modals.selectedProduct.stock}</p>
-                  </div>
-                )}
-
-                <div className="mb-3">
-                  <Form.Label>Quantity</Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="1"
-                    max={state.modals.selectedProduct?.stock || 1}
-                    value={state.modals.quantity}
-                    onChange={(e) =>
-                      setState((prev) => ({
-                        ...prev,
-                        modals: {
-                          ...prev.modals,
-                          quantity: Math.min(
-                            parseInt(e.target.value || 1),
-                            state.modals.selectedProduct?.stock || Infinity
-                          ),
-                        },
-                      }))
-                    }
-                    placeholder="Quantity"
-                  />
-                </div>
+      {/* New Sale Modal */}
+      <Modal
+        show={state.modals.showSaleModal}
+        onHide={() =>
+          setState((prev) => ({
+            ...prev,
+            modals: { ...prev.modals, showSaleModal: false },
+          }))
+        }
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title className="d-flex align-items-center gap-2">
+            <FiPlus size={20} />
+            Create New Sale
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Row className="mb-4">
+            <Col md={8}>
+              <Form.Group>
+                <Form.Label className="fw-medium">Product</Form.Label>
+                <Form.Select
+                  value={state.modals.productIdInput}
+                  onChange={(e) =>
+                    setState((prev) => ({
+                      ...prev,
+                      modals: {
+                        ...prev.modals,
+                        productIdInput: e.target.value,
+                        selectedProduct: state.products.find(
+                          (p) => p.id === parseInt(e.target.value)
+                        ),
+                      },
+                    }))
+                  }
+                >
+                  <option value="">Select a product...</option>
+                  {state.products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.name} - {formatCurrency(product.price)} (Stock:{" "}
+                      {product.stock})
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={2}>
+              <Form.Group>
+                <Form.Label className="fw-medium">Quantity</Form.Label>
+                <Form.Control
+                  type="number"
+                  min="1"
+                  value={state.modals.quantity}
+                  onChange={(e) =>
+                    setState((prev) => ({
+                      ...prev,
+                      modals: {
+                        ...prev.modals,
+                        quantity: parseInt(e.target.value) || 1,
+                      },
+                    }))
+                  }
+                />
+              </Form.Group>
+            </Col>
+            <Col md={2}>
+              <Form.Group>
+                <Form.Label className="fw-medium">&nbsp;</Form.Label>
                 <Button
-                  variant="primary"
+                  variant="success"
+                  className="w-100"
                   onClick={() => {
-                    if (state.modals.selectedProduct) {
+                    if (state.modals.productIdInput) {
                       handleAddProductToSale(
                         state.modals.productIdInput,
                         state.modals.quantity
@@ -1054,243 +1300,265 @@ const SalesPage = () => {
                       }));
                     }
                   }}
-                  disabled={!state.modals.selectedProduct}
+                  disabled={!state.modals.productIdInput}
                 >
-                  Add to Sale
+                  <FiPlus size={16} />
                 </Button>
-              </Col>
-              <Col md={6}>
-                <h5>Current Sale</h5>
-                {state.modals.currentSaleItems.length === 0 ? (
-                  <p className="text-muted">No items added yet</p>
-                ) : (
-                  <div className="sale-items-list">
-                    <table className="table table-sm">
-                      <thead>
-                        <tr>
-                          <th>Product</th>
-                          <th>Price</th>
-                          <th>Qty</th>
-                          <th>Subtotal</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {state.modals.currentSaleItems.map((item, index) => (
-                          <tr key={index}>
-                            <td>{item.name}</td>
-                            <td>{formatCurrency(item.price)}</td>
-                            <td>{item.quantity}</td>
-                            <td>
-                              {formatCurrency(item.price * item.quantity)}
-                            </td>
-                            <td>
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="text-danger p-0"
-                                onClick={() =>
-                                  handleRemoveProductFromSale(index)
-                                }
-                                title="Remove item"
-                              >
-                                <FiTrash2 />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              </Form.Group>
+            </Col>
+          </Row>
 
-                    <div className="discount-controls mb-3">
-                      <h6>Discount</h6>
-                      <div className="mb-2">
-                        <Form.Check
-                          inline
-                          type="radio"
-                          label="Percentage"
-                          name="discountType"
-                          checked={state.modals.discountType === "percentage"}
-                          onChange={() =>
-                            setState((prev) => ({
-                              ...prev,
-                              modals: {
-                                ...prev.modals,
-                                discountType: "percentage",
-                              },
-                            }))
-                          }
-                        />
-                        <Form.Check
-                          inline
-                          type="radio"
-                          label="Fixed Amount"
-                          name="discountType"
-                          checked={state.modals.discountType === "fixed"}
-                          onChange={() =>
-                            setState((prev) => ({
-                              ...prev,
-                              modals: {
-                                ...prev.modals,
-                                discountType: "fixed",
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-
-                      <InputGroup className="mb-2">
+          {/* Sale Items */}
+          <div className="mb-4">
+            <h6 className="fw-medium mb-3">Sale Items</h6>
+            {state.modals.currentSaleItems.length === 0 ? (
+              <div className="text-center py-4 bg-light rounded">
+                <FiShoppingCart size={32} className="text-muted mb-2" />
+                <p className="text-muted mb-0">No items added yet</p>
+              </div>
+            ) : (
+              <Table responsive>
+                <thead className="bg-light">
+                  <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {state.modals.currentSaleItems.map((item, index) => (
+                    <tr key={index}>
+                      <td className="fw-medium">{item.name}</td>
+                      <td>{formatCurrency(item.price)}</td>
+                      <td>
                         <Form.Control
                           type="number"
-                          min="0"
-                          max={
-                            state.modals.discountType === "percentage"
-                              ? 100
-                              : undefined
-                          }
-                          value={state.modals.discountValue}
-                          onChange={(e) =>
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const newQuantity = parseInt(e.target.value) || 1;
+                            const updatedItems = [
+                              ...state.modals.currentSaleItems,
+                            ];
+                            updatedItems[index].quantity = newQuantity;
                             setState((prev) => ({
                               ...prev,
                               modals: {
                                 ...prev.modals,
-                                discountValue: parseFloat(e.target.value) || 0,
+                                currentSaleItems: updatedItems,
                               },
-                            }))
-                          }
-                          placeholder={
-                            state.modals.discountType === "percentage"
-                              ? "0-100%"
-                              : "Amount"
-                          }
+                            }));
+                          }}
+                          style={{ width: "80px" }}
                         />
-                        <InputGroup.Text>
-                          {state.modals.discountType === "percentage" ? (
-                            <FiPercent />
-                          ) : (
-                            <FiDollarSign />
-                          )}
-                        </InputGroup.Text>
-                      </InputGroup>
+                      </td>
+                      <td className="fw-semibold">
+                        {formatCurrency(item.price * item.quantity)}
+                      </td>
+                      <td>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleRemoveProductFromSale(index)}
+                        >
+                          <FiTrash2 size={14} />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </div>
 
-                      <Form.Control
-                        type="text"
-                        placeholder="Discount reason (optional)"
-                        value={state.modals.discountReason}
-                        onChange={(e) =>
-                          setState((prev) => ({
-                            ...prev,
-                            modals: {
-                              ...prev.modals,
-                              discountReason: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <div className="text-end mt-3">
-                      <h5>Subtotal: {formatCurrency(currentSaleSubtotal)}</h5>
-                      {state.modals.discountValue > 0 && (
-                        <>
-                          <h5 className="text-danger">
-                            Discount:{" "}
-                            {state.modals.discountType === "percentage"
-                              ? `${state.modals.discountValue}%`
-                              : formatCurrency(state.modals.discountValue)}
-                          </h5>
-                          <h4>Total: {formatCurrency(currentSaleTotal)}</h4>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
+          {/* Discount Section */}
+          <div className="mb-4">
+            <h6 className="fw-medium mb-3">Discount (Optional)</h6>
+            <Row className="g-3">
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Type</Form.Label>
+                  <Form.Select
+                    value={state.modals.discountType}
+                    onChange={(e) =>
+                      setState((prev) => ({
+                        ...prev,
+                        modals: {
+                          ...prev.modals,
+                          discountType: e.target.value,
+                        },
+                      }))
+                    }
+                  >
+                    <option value="percentage">Percentage</option>
+                    <option value="fixed">Fixed Amount</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label>Value</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={state.modals.discountValue}
+                    onChange={(e) =>
+                      setState((prev) => ({
+                        ...prev,
+                        modals: {
+                          ...prev.modals,
+                          discountValue: parseFloat(e.target.value) || 0,
+                        },
+                      }))
+                    }
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Reason</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Discount reason (optional)"
+                    value={state.modals.discountReason}
+                    onChange={(e) =>
+                      setState((prev) => ({
+                        ...prev,
+                        modals: {
+                          ...prev.modals,
+                          discountReason: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+                </Form.Group>
               </Col>
             </Row>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                setState((prev) => ({
-                  ...prev,
-                  modals: {
-                    ...prev.modals,
-                    showSaleModal: false,
-                    currentSaleItems: [],
-                    discountType: "percentage",
-                    discountValue: 0,
-                    discountReason: "",
-                  },
-                }))
-              }
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleCreateSale}
-              disabled={state.modals.currentSaleItems.length === 0}
-            >
-              Complete Sale
-            </Button>
-          </Modal.Footer>
-        </Modal>
+          </div>
 
-        {/* Sale Details Modal */}
-        <Modal
-          show={state.modals.showDetailsModal}
-          onHide={() =>
-            setState((prev) => ({
-              ...prev,
-              modals: {
-                ...prev.modals,
-                showDetailsModal: false,
-                selectedSale: null,
-              },
-            }))
-          }
-          size="lg"
-          centered
-        >
-          <Modal.Header closeButton>
-            <Modal.Title>
-              Sale Details #{state.modals.selectedSale?.id}
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            {state.modals.selectedSale ? (
-              <>
-                <div className="mb-4">
-                  <Row>
-                    <Col md={6}>
-                      <p>
+          {/* Sale Summary */}
+          <Card className="bg-light border-0">
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span>Subtotal:</span>
+                <span className="fw-semibold">
+                  {formatCurrency(currentSaleSubtotal)}
+                </span>
+              </div>
+              {state.modals.discountValue > 0 && (
+                <div className="d-flex justify-content-between align-items-center mb-2 text-success">
+                  <span>
+                    Discount (
+                    {state.modals.discountType === "percentage" ? "%" : "$"}):
+                  </span>
+                  <span>
+                    -
+                    {state.modals.discountType === "percentage"
+                      ? `${state.modals.discountValue}%`
+                      : formatCurrency(state.modals.discountValue)}
+                  </span>
+                </div>
+              )}
+              <hr className="my-2" />
+              <div className="d-flex justify-content-between align-items-center">
+                <span className="h6 mb-0">Total:</span>
+                <span className="h5 mb-0 text-success fw-bold">
+                  {formatCurrency(currentSaleTotal)}
+                </span>
+              </div>
+            </Card.Body>
+          </Card>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              setState((prev) => ({
+                ...prev,
+                modals: { ...prev.modals, showSaleModal: false },
+              }))
+            }
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleCreateSale}
+            disabled={
+              state.modals.currentSaleItems.length === 0 || creatingSale
+            }
+            className="d-flex align-items-center gap-2"
+          >
+            <FiCreditCard size={16} />
+            {creatingSale ? "Processing..." : "Complete Sale"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Sale Details Modal */}
+      <Modal
+        show={state.modals.showDetailsModal}
+        onHide={() =>
+          setState((prev) => ({
+            ...prev,
+            modals: { ...prev.modals, showDetailsModal: false },
+          }))
+        }
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title className="d-flex align-items-center gap-2">
+            <FiEye size={20} />
+            Sale Details #{state.modals.selectedSale?.id}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {state.modals.selectedSale && (
+            <>
+              <Row className="mb-4">
+                <Col md={6}>
+                  <Card className="border-0 bg-light">
+                    <Card.Body>
+                      <h6 className="fw-medium mb-3">Sale Information</h6>
+                      <div className="mb-2">
+                        <strong>Sale ID:</strong> #
+                        {state.modals.selectedSale.id}
+                      </div>
+                      <div className="mb-2">
                         <strong>Date:</strong>{" "}
-                        {state.modals.selectedSale.date
-                          ? new Date(
-                              state.modals.selectedSale.date
-                            ).toLocaleString()
-                          : "N/A"}
-                      </p>
-                      <p>
+                        {new Date(
+                          state.modals.selectedSale.date
+                        ).toLocaleString()}
+                      </div>
+                      <div className="mb-2">
                         <strong>Cashier:</strong>{" "}
-                        {state.modals.selectedSale.cashier?.name ||
-                          state.cashiers.find(
-                            (c) => c.id === state.modals.selectedSale.cashier_id
-                          )?.name ||
-                          (state.modals.selectedSale.cashier_id
-                            ? `Cashier #${state.modals.selectedSale.cashier_id}`
-                            : "N/A")}
-                      </p>
-                    </Col>
-                    <Col md={6} className="text-end">
-                      <h5>
-                        Subtotal:{" "}
+                        {state.modals.selectedSale.cashier?.name || "Unknown"}
+                      </div>
+                      <div>
+                        <strong>Total Amount:</strong>{" "}
+                        <span className="text-success fw-bold">
+                          {formatCurrency(
+                            state.modals.selectedSale.totalAmount
+                          )}
+                        </span>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={6}>
+                  <Card className="border-0 bg-light">
+                    <Card.Body>
+                      <h6 className="fw-medium mb-3">Payment Summary</h6>
+                      <div className="mb-2">
+                        <strong>Subtotal:</strong>{" "}
                         {formatCurrency(state.modals.selectedSale.subtotal)}
-                      </h5>
+                      </div>
                       {state.modals.selectedSale.discountValue > 0 && (
-                        <h5 className="text-danger">
-                          Discount:{" "}
+                        <div className="mb-2 text-success">
+                          <strong>Discount:</strong>{" "}
                           {state.modals.selectedSale.discountType ===
                           "percentage"
                             ? `${state.modals.selectedSale.discountValue}%`
@@ -1302,80 +1570,59 @@ const SalesPage = () => {
                               Reason: {state.modals.selectedSale.discountReason}
                             </small>
                           )}
-                        </h5>
+                        </div>
                       )}
-                      <h4>
-                        Total:{" "}
+                      <div className="text-success">
+                        <strong>Final Total:</strong>{" "}
                         {formatCurrency(state.modals.selectedSale.totalAmount)}
-                      </h4>
-                    </Col>
-                  </Row>
-                </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              </Row>
 
-                <h5>Items</h5>
-                {state.modals.selectedSale.saleItems?.length > 0 ? (
-                  <div className="table-responsive">
-                    <table className="table table-sm">
-                      <thead>
-                        <tr>
-                          <th>Product</th>
-                          <th>Price</th>
-                          <th>Qty</th>
-                          <th>Subtotal</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {state.modals.selectedSale.saleItems.map(
-                          (item, index) => {
-                            const price = parseFloat(
-                              item.unitPrice || item.price || 0
-                            );
-                            const quantity = parseInt(item.quantity || 0);
-                            const itemSubtotal = price * quantity;
-
-                            return (
-                              <tr key={index}>
-                                <td>
-                                  {item.product?.name ||
-                                    `Product ID: ${item.productId}`}
-                                </td>
-                                <td>{formatCurrency(price)}</td>
-                                <td>{quantity}</td>
-                                <td>{formatCurrency(itemSubtotal)}</td>
-                              </tr>
-                            );
-                          }
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-muted">No items found for this sale</p>
-                )}
-              </>
-            ) : (
-              <Alert variant="warning">No sale data available</Alert>
-            )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                setState((prev) => ({
-                  ...prev,
-                  modals: {
-                    ...prev.modals,
-                    showDetailsModal: false,
-                    selectedSale: null,
-                  },
-                }))
-              }
-            >
-              Close
-            </Button>
-          </Modal.Footer>
-        </Modal>
-      </main>
+              <h6 className="fw-medium mb-3">Items Purchased</h6>
+              <Table responsive>
+                <thead className="bg-light">
+                  <tr>
+                    <th>Product</th>
+                    <th>Unit Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {state.modals.selectedSale.saleItems?.map((item, index) => (
+                    <tr key={index}>
+                      <td className="fw-medium">
+                        {item.product?.name || `Product ID: ${item.productId}`}
+                      </td>
+                      <td>{formatCurrency(item.unitPrice)}</td>
+                      <td>{item.quantity}</td>
+                      <td className="fw-semibold">
+                        {formatCurrency(item.unitPrice * item.quantity)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              setState((prev) => ({
+                ...prev,
+                modals: { ...prev.modals, showDetailsModal: false },
+              }))
+            }
+          >
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

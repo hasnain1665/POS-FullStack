@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Table,
@@ -29,7 +28,7 @@ import {
 } from "../services/productService";
 import Sidebar from "../components/Sidebar";
 import { checkAccess, AccessDeniedAlert } from "../utils/auth";
-import "../styles/Product.css";
+import "../styles/Products.css";
 
 const productSchema = Yup.object().shape({
   name: Yup.string().required("Name is required"),
@@ -152,7 +151,10 @@ const ProductsPage = () => {
         <Sidebar />
         <main className="main-content">
           <header className="content-header">
-            <h2>Manage Products</h2>
+            <h2>
+              <FiPackage className="me-3" />
+              Manage Products
+            </h2>
           </header>
           <div className="content-body">
             <AccessDeniedAlert />
@@ -168,12 +170,22 @@ const ProductsPage = () => {
         <Sidebar />
         <main className="main-content">
           <header className="content-header">
-            <h2>Manage Products</h2>
+            <h2>
+              <FiPackage className="me-3" />
+              Manage Products
+            </h2>
           </header>
-          <div className="content-body text-center my-5">
-            <Spinner animation="border" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </Spinner>
+          <div className="content-body">
+            <div className="text-center my-5">
+              <Spinner
+                animation="border"
+                role="status"
+                className="spinner-border"
+              >
+                <span className="visually-hidden">Loading...</span>
+              </Spinner>
+              <p className="mt-3 text-muted">Loading products...</p>
+            </div>
           </div>
         </main>
       </div>
@@ -186,10 +198,13 @@ const ProductsPage = () => {
         <Sidebar />
         <main className="main-content">
           <header className="content-header">
-            <h2>Manage Products</h2>
+            <h2>
+              <FiPackage className="me-3" />
+              Manage Products
+            </h2>
           </header>
           <div className="content-body">
-            <Alert variant="danger" className="mb-4">
+            <Alert variant="danger" className="alert alert-danger">
               {state.error}
             </Alert>
           </div>
@@ -230,7 +245,8 @@ const ProductsPage = () => {
         ...prev,
         alert: {
           type: "danger",
-          message: "Access denied - only admins and managers can modify products",
+          message:
+            "Access denied - only admins and managers can modify products",
         },
       }));
       return;
@@ -277,7 +293,8 @@ const ProductsPage = () => {
         ...prev,
         alert: {
           type: "danger",
-          message: "Access denied - only admins and managers can delete products",
+          message:
+            "Access denied - only admins and managers can delete products",
         },
       }));
       return;
@@ -322,7 +339,8 @@ const ProductsPage = () => {
         ...prev,
         alert: {
           type: "danger",
-          message: "Access denied - only admins and managers can restock products",
+          message:
+            "Access denied - only admins and managers can restock products",
         },
       }));
       return;
@@ -387,7 +405,10 @@ const ProductsPage = () => {
 
       <main className="main-content">
         <header className="content-header">
-          <h2>Manage Products</h2>
+          <h2>
+            <FiPackage className="me-3" />
+            Manage Products
+          </h2>
         </header>
 
         <div className="content-body">
@@ -396,7 +417,7 @@ const ProductsPage = () => {
               variant={state.alert.type}
               onClose={() => setState((prev) => ({ ...prev, alert: null }))}
               dismissible
-              className="mb-4"
+              className={`alert alert-${state.alert.type}`}
             >
               {state.alert.message}
             </Alert>
@@ -404,11 +425,11 @@ const ProductsPage = () => {
 
           {/* Filter Card */}
           <Card className="filter-card mb-4">
-            <Card.Body>
+            <Card.Body className="card-body">
               <Row className="g-3 align-items-center">
                 <Col md={4}>
-                  <InputGroup>
-                    <InputGroup.Text>
+                  <InputGroup className="input-group">
+                    <InputGroup.Text className="input-group-text">
                       <FiSearch />
                     </InputGroup.Text>
                     <Form.Control
@@ -417,6 +438,7 @@ const ProductsPage = () => {
                       placeholder="Search products..."
                       value={state.filters.search}
                       onChange={handleFilterChange}
+                      className="form-control"
                     />
                   </InputGroup>
                 </Col>
@@ -426,6 +448,7 @@ const ProductsPage = () => {
                     name="category"
                     value={state.filters.category}
                     onChange={handleFilterChange}
+                    className="form-select"
                   >
                     <option value="">All Categories</option>
                     {state.categories.map((cat) => (
@@ -440,6 +463,7 @@ const ProductsPage = () => {
                   {canModify && (
                     <Button
                       variant="primary"
+                      className="btn btn-primary"
                       onClick={() =>
                         setState((prev) => ({
                           ...prev,
@@ -475,8 +499,14 @@ const ProductsPage = () => {
               <tbody>
                 {state.products.length === 0 ? (
                   <tr>
-                    <td colSpan={hasAccess ? 6 : 5} className="text-center py-4">
-                      No products found
+                    <td
+                      colSpan={hasAccess ? 6 : 5}
+                      className="text-center py-4"
+                    >
+                      <div className="text-muted">
+                        <FiPackage size={48} className="mb-3 opacity-50" />
+                        <p>No products found</p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -491,7 +521,7 @@ const ProductsPage = () => {
                           : parseFloat(product.price || 0).toFixed(2)}
                       </td>
                       <td>
-                        <Badge bg="secondary" className="text-capitalize">
+                        <Badge bg="secondary" className="badge text-capitalize">
                           {product.category}
                         </Badge>
                       </td>
@@ -501,6 +531,9 @@ const ProductsPage = () => {
                         }`}
                       >
                         {product.stock}
+                        {product.stock <= 5 && (
+                          <span className="ms-2 text-warning">⚠️</span>
+                        )}
                       </td>
                       {hasAccess && (
                         <td className="text-center">
@@ -508,7 +541,7 @@ const ProductsPage = () => {
                             <Button
                               variant="outline-primary"
                               size="sm"
-                              className="me-2"
+                              className="btn btn-outline-primary"
                               onClick={() => setEditProduct(product)}
                               disabled={!canModify}
                             >
@@ -517,6 +550,7 @@ const ProductsPage = () => {
                             <Button
                               variant="outline-danger"
                               size="sm"
+                              className="btn btn-outline-danger"
                               onClick={() => handleDelete(product.id)}
                               disabled={!canModify}
                             >
@@ -526,13 +560,15 @@ const ProductsPage = () => {
                               <Button
                                 variant="outline-warning"
                                 size="sm"
+                                className="btn btn-outline-warning"
                                 onClick={() => {
                                   if (!canModify) {
                                     setState((prev) => ({
                                       ...prev,
                                       alert: {
                                         type: "danger",
-                                        message: "Access denied - only admins and managers can restock products",
+                                        message:
+                                          "Access denied - only admins and managers can restock products",
                                       },
                                     }));
                                     return;
@@ -563,29 +599,25 @@ const ProductsPage = () => {
 
           {state.pagination.totalPages > 1 && (
             <div className="pagination-wrapper">
-              <Pagination>
+              <Pagination className="pagination">
                 <Pagination.Prev
                   disabled={state.pagination.currentPage === 1}
                   onClick={() =>
                     handlePageChange(state.pagination.currentPage - 1)
                   }
                 />
-                {Array.from(
-                  { length: state.pagination.totalPages },
-                  (_, i) => (
-                    <Pagination.Item
-                      key={i + 1}
-                      active={i + 1 === state.pagination.currentPage}
-                      onClick={() => handlePageChange(i + 1)}
-                    >
-                      {i + 1}
-                    </Pagination.Item>
-                  )
-                )}
+                {Array.from({ length: state.pagination.totalPages }, (_, i) => (
+                  <Pagination.Item
+                    key={i + 1}
+                    active={i + 1 === state.pagination.currentPage}
+                    onClick={() => handlePageChange(i + 1)}
+                  >
+                    {i + 1}
+                  </Pagination.Item>
+                ))}
                 <Pagination.Next
                   disabled={
-                    state.pagination.currentPage ===
-                    state.pagination.totalPages
+                    state.pagination.currentPage === state.pagination.totalPages
                   }
                   onClick={() =>
                     handlePageChange(state.pagination.currentPage + 1)
@@ -611,104 +643,116 @@ const ProductsPage = () => {
           }))
         }
         centered
+        className="modal"
       >
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {state.modals.selectedProduct ? "Edit Product" : "Add Product"}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Formik
-            initialValues={{
-              id: state.modals.selectedProduct?.id || "",
-              name: state.modals.selectedProduct?.name || "",
-              price: state.modals.selectedProduct?.price || "",
-              category: state.modals.selectedProduct?.category || "",
-              stock: state.modals.selectedProduct?.stock || "",
-              description: state.modals.selectedProduct?.description || "",
-            }}
-            validationSchema={productSchema}
-            onSubmit={handleProductSubmit}
-          >
-            {({ errors, touched }) => (
-              <FormikForm>
-                <Form.Group className="mb-3">
-                  <Form.Label>Name</Form.Label>
-                  <Field name="name" className="form-control" />
-                  {errors.name && touched.name && (
-                    <div className="text-danger small">{errors.name}</div>
-                  )}
-                </Form.Group>
+        <div className="modal-content">
+          <Modal.Header closeButton className="modal-header">
+            <Modal.Title className="modal-title">
+              {state.modals.selectedProduct ? "Edit Product" : "Add Product"}
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="modal-body">
+            <Formik
+              initialValues={{
+                id: state.modals.selectedProduct?.id || "",
+                name: state.modals.selectedProduct?.name || "",
+                price: state.modals.selectedProduct?.price || "",
+                category: state.modals.selectedProduct?.category || "",
+                stock: state.modals.selectedProduct?.stock || "",
+                description: state.modals.selectedProduct?.description || "",
+              }}
+              validationSchema={productSchema}
+              onSubmit={handleProductSubmit}
+            >
+              {({ errors, touched }) => (
+                <FormikForm>
+                  <Form.Group className="form-group mb-3">
+                    <Form.Label className="form-label">Name</Form.Label>
+                    <Field name="name" className="form-control" />
+                    {errors.name && touched.name && (
+                      <div className="text-danger">{errors.name}</div>
+                    )}
+                  </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Price</Form.Label>
-                  <Field
-                    name="price"
-                    type="number"
-                    step="0.01"
-                    className="form-control"
-                  />
-                  {errors.price && touched.price && (
-                    <div className="text-danger small">{errors.price}</div>
-                  )}
-                </Form.Group>
+                  <Form.Group className="form-group mb-3">
+                    <Form.Label className="form-label">Price</Form.Label>
+                    <Field
+                      name="price"
+                      type="number"
+                      step="0.01"
+                      className="form-control"
+                    />
+                    {errors.price && touched.price && (
+                      <div className="text-danger">{errors.price}</div>
+                    )}
+                  </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Category</Form.Label>
-                  <Field as="select" name="category" className="form-control">
-                    <option value="">Select category</option>
-                    {state.categories.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </Field>
-                  {errors.category && touched.category && (
-                    <div className="text-danger small">{errors.category}</div>
-                  )}
-                </Form.Group>
+                  <Form.Group className="form-group mb-3">
+                    <Form.Label className="form-label">Category</Form.Label>
+                    <Field as="select" name="category" className="form-select">
+                      <option value="">Select category</option>
+                      {state.categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </Field>
+                    {errors.category && touched.category && (
+                      <div className="text-danger">{errors.category}</div>
+                    )}
+                  </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Stock</Form.Label>
-                  <Field name="stock" type="number" className="form-control" />
-                  {errors.stock && touched.stock && (
-                    <div className="text-danger small">{errors.stock}</div>
-                  )}
-                </Form.Group>
+                  <Form.Group className="form-group mb-3">
+                    <Form.Label className="form-label">Stock</Form.Label>
+                    <Field
+                      name="stock"
+                      type="number"
+                      className="form-control"
+                    />
+                    {errors.stock && touched.stock && (
+                      <div className="text-danger">{errors.stock}</div>
+                    )}
+                  </Form.Group>
 
-                <Form.Group className="mb-3">
-                  <Form.Label>Description</Form.Label>
-                  <Field
-                    as="textarea"
-                    name="description"
-                    className="form-control"
-                    rows={3}
-                  />
-                </Form.Group>
+                  <Form.Group className="form-group mb-3">
+                    <Form.Label className="form-label">Description</Form.Label>
+                    <Field
+                      as="textarea"
+                      name="description"
+                      className="form-control"
+                      rows={3}
+                    />
+                  </Form.Group>
 
-                <div className="d-flex justify-content-end gap-2">
-                  <Button
-                    variant="secondary"
-                    onClick={() =>
-                      setState((prev) => ({
-                        ...prev,
-                        modals: {
-                          ...prev.modals,
-                          showProductModal: false,
-                        },
-                      }))
-                    }
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" variant="primary">
-                    {state.modals.selectedProduct ? "Update" : "Create"}
-                  </Button>
-                </div>
-              </FormikForm>
-            )}
-          </Formik>
-        </Modal.Body>
+                  <div className="d-flex justify-content-end gap-2">
+                    <Button
+                      variant="secondary"
+                      className="btn btn-secondary"
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
+                          modals: {
+                            ...prev.modals,
+                            showProductModal: false,
+                          },
+                        }))
+                      }
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      className="btn btn-primary"
+                    >
+                      {state.modals.selectedProduct ? "Update" : "Create"}
+                    </Button>
+                  </div>
+                </FormikForm>
+              )}
+            </Formik>
+          </Modal.Body>
+        </div>
       </Modal>
 
       {/* Restock Modal */}
@@ -725,73 +769,87 @@ const ProductsPage = () => {
         }
         centered
         size="sm"
+        className="modal"
       >
-        <Modal.Header closeButton>
-          <Modal.Title>Restock Product</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Formik
-            initialValues={{ quantity: 1 }}
-            validationSchema={Yup.object({
-              quantity: Yup.number()
-                .required("Required")
-                .integer("Must be integer")
-                .min(1, "Must be at least 1"),
-            })}
-            onSubmit={handleRestock}
-          >
-            {({ errors, touched }) => (
-              <FormikForm>
-                <Form.Group className="mb-3">
-                  <Form.Label>Product</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={state.modals.selectedProduct?.name}
-                    readOnly
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Current Stock</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={state.modals.selectedProduct?.stock}
-                    readOnly
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Quantity to Add</Form.Label>
-                  <Field
-                    name="quantity"
-                    type="number"
-                    className="form-control"
-                  />
-                  {errors.quantity && touched.quantity && (
-                    <div className="text-danger small">{errors.quantity}</div>
-                  )}
-                </Form.Group>
-                <div className="d-flex justify-content-end gap-2">
-                  <Button
-                    variant="secondary"
-                    onClick={() =>
-                      setState((prev) => ({
-                        ...prev,
-                        modals: {
-                          ...prev.modals,
-                          showRestockModal: false,
-                        },
-                      }))
-                    }
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" variant="primary">
-                    Restock
-                  </Button>
-                </div>
-              </FormikForm>
-            )}
-          </Formik>
-        </Modal.Body>
+        <div className="modal-content">
+          <Modal.Header closeButton className="modal-header">
+            <Modal.Title className="modal-title">Restock Product</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="modal-body">
+            <Formik
+              initialValues={{ quantity: 1 }}
+              validationSchema={Yup.object({
+                quantity: Yup.number()
+                  .required("Required")
+                  .integer("Must be integer")
+                  .min(1, "Must be at least 1"),
+              })}
+              onSubmit={handleRestock}
+            >
+              {({ errors, touched }) => (
+                <FormikForm>
+                  <Form.Group className="form-group mb-3">
+                    <Form.Label className="form-label">Product</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={state.modals.selectedProduct?.name}
+                      readOnly
+                      className="form-control"
+                    />
+                  </Form.Group>
+                  <Form.Group className="form-group mb-3">
+                    <Form.Label className="form-label">
+                      Current Stock
+                    </Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={state.modals.selectedProduct?.stock}
+                      readOnly
+                      className="form-control"
+                    />
+                  </Form.Group>
+                  <Form.Group className="form-group mb-3">
+                    <Form.Label className="form-label">
+                      Quantity to Add
+                    </Form.Label>
+                    <Field
+                      name="quantity"
+                      type="number"
+                      className="form-control"
+                    />
+                    {errors.quantity && touched.quantity && (
+                      <div className="text-danger">{errors.quantity}</div>
+                    )}
+                  </Form.Group>
+                  <div className="d-flex justify-content-end gap-2">
+                    <Button
+                      variant="secondary"
+                      className="btn btn-secondary"
+                      onClick={() =>
+                        setState((prev) => ({
+                          ...prev,
+                          modals: {
+                            ...prev.modals,
+                            showRestockModal: false,
+                          },
+                        }))
+                      }
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      className="btn btn-primary"
+                    >
+                      Restock
+                    </Button>
+                  </div>
+                </FormikForm>
+              )}
+            </Formik>
+          </Modal.Body>
+        </div>
       </Modal>
     </div>
   );

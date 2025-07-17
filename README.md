@@ -118,8 +118,11 @@ pos-app/
 |   |   |   └── ForgotPassword.css
 |   |   |   └── Login.css
 |   |   |   └── Product.css
+|   |   |   └── Products.css
+|   |   |   └── ResetPassword.css
 |   |   |   └── Sales.css
 |   |   |   └── Sidebar.css
+|   |   |   └── Signup.css
 |   |   |   └── users.css
 |   |   ├── utils/
 |   |   |   └── auth.js

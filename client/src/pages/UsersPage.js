@@ -15,7 +15,13 @@ import {
   InputGroup,
   Card,
 } from "react-bootstrap";
-import { FiEdit, FiTrash2, FiPlus, FiSearch } from "react-icons/fi";
+import {
+  FiEdit,
+  FiTrash2,
+  FiPlus,
+  FiSearch,
+  FiAlertTriangle,
+} from "react-icons/fi";
 import { Formik, Field, Form as FormikForm } from "formik";
 import * as Yup from "yup";
 import {
@@ -38,7 +44,10 @@ const UsersPage = () => {
     modals: {
       showUserModal: false,
       selectedUser: null,
+      showDeleteModal: false,
+      userToDelete: null,
     },
+    deleting: false,
   });
 
   // Check access first - same logic as DashboardPage
@@ -89,7 +98,7 @@ const UsersPage = () => {
     setState((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleDelete = async (id) => {
+  const showDeleteConfirmation = (user) => {
     if (accessDenied) {
       setState((prev) => ({
         ...prev,
@@ -101,37 +110,73 @@ const UsersPage = () => {
       return;
     }
 
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      try {
-        const result = await deleteUser(id);
-        if (result.success) {
-          setState((prev) => ({
-            ...prev,
-            alert: {
-              type: "success",
-              message: "User deleted successfully!",
-            },
-            users: prev.users.filter((user) => user.id !== id),
-          }));
-          fetchUsers();
-        } else {
-          setState((prev) => ({
-            ...prev,
-            alert: {
-              type: "danger",
-              message: result.message || "Failed to delete user",
-            },
-          }));
-        }
-      } catch (error) {
+    setState((prev) => ({
+      ...prev,
+      modals: {
+        ...prev.modals,
+        showDeleteModal: true,
+        userToDelete: user,
+      },
+    }));
+  };
+
+  const handleDelete = async () => {
+    if (!state.modals.userToDelete) return;
+
+    setState((prev) => ({ ...prev, deleting: true }));
+
+    try {
+      const result = await deleteUser(state.modals.userToDelete.id);
+
+      if (result.success) {
+        setState((prev) => ({
+          ...prev,
+          // Remove the deleted user from the users array
+          users: prev.users.filter(
+            (user) => user.id !== state.modals.userToDelete.id
+          ),
+          alert: {
+            type: "success",
+            message: `User "${state.modals.userToDelete.name}" deleted successfully!`,
+          },
+          modals: {
+            ...prev.modals,
+            showDeleteModal: false,
+            userToDelete: null,
+          },
+          deleting: false,
+        }));
+
+        // No need to refetch from server - user is already removed from state
+      } else {
         setState((prev) => ({
           ...prev,
           alert: {
             type: "danger",
-            message: "Failed to delete user",
+            message: result.message || "Failed to delete user",
           },
+          modals: {
+            ...prev.modals,
+            showDeleteModal: false,
+            userToDelete: null,
+          },
+          deleting: false,
         }));
       }
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        alert: {
+          type: "danger",
+          message: "Failed to delete user",
+        },
+        modals: {
+          ...prev.modals,
+          showDeleteModal: false,
+          userToDelete: null,
+        },
+        deleting: false,
+      }));
     }
   };
 
@@ -168,7 +213,9 @@ const UsersPage = () => {
               : "User added successfully!",
           },
         }));
-        fetchUsers();
+
+        // Refresh the users list
+        await fetchUsers();
         resetForm();
       } else {
         setState((prev) => ({
@@ -382,7 +429,7 @@ const UsersPage = () => {
                           <Button
                             variant="outline-danger"
                             size="sm"
-                            onClick={() => handleDelete(user.id)}
+                            onClick={() => showDeleteConfirmation(user)}
                           >
                             <FiTrash2 />
                           </Button>
@@ -396,6 +443,85 @@ const UsersPage = () => {
           </div>
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        show={state.modals.showDeleteModal}
+        onHide={() =>
+          setState((prev) => ({
+            ...prev,
+            modals: {
+              ...prev.modals,
+              showDeleteModal: false,
+              userToDelete: null,
+            },
+          }))
+        }
+        centered
+        size="sm"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title className="text-danger">
+            <FiAlertTriangle className="me-2" />
+            Confirm Delete
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-3">Are you sure you want to delete the user:</p>
+          <div className="bg-light p-3 rounded">
+            <strong>{state.modals.userToDelete?.name}</strong>
+            <br />
+            <small className="text-muted">
+              {state.modals.userToDelete?.email}
+            </small>
+          </div>
+          <p className="mt-3 mb-0 text-muted small">
+            This action cannot be undone.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              setState((prev) => ({
+                ...prev,
+                modals: {
+                  ...prev.modals,
+                  showDeleteModal: false,
+                  userToDelete: null,
+                },
+              }))
+            }
+            disabled={state.deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            disabled={state.deleting}
+          >
+            {state.deleting ? (
+              <>
+                <Spinner
+                  as="span"
+                  animation="border"
+                  size="sm"
+                  role="status"
+                  aria-hidden="true"
+                  className="me-2"
+                />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <FiTrash2 className="me-2" />
+                Delete User
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Add/Edit User Modal */}
       <Modal
